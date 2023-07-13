@@ -1,0 +1,1 @@
+cmd_/media/sf_/Practica/day4/dev1.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /media/sf_/Practica/day4/dev1.ko /media/sf_/Practica/day4/dev1.o /media/sf_/Practica/day4/dev1.mod.o;  true

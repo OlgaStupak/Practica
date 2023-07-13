@@ -1,0 +1,1 @@
+cmd_/home/orochy/Practica/day5/pcidev.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/orochy/Practica/day5/pcidev.ko /home/orochy/Practica/day5/pcidev.o /home/orochy/Practica/day5/pcidev.mod.o;  true

@@ -1,0 +1,1 @@
+cmd_/home/orochy/Practica/day3/Module.symvers := sed 's/ko$$/o/' /home/orochy/Practica/day3/modules.order | scripts/mod/modpost -m -a  -o /home/orochy/Practica/day3/Module.symvers -e -i Module.symvers   -T -

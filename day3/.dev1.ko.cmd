@@ -1,0 +1,1 @@
+cmd_/home/orochy/Practica/day3/dev1.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/orochy/Practica/day3/dev1.ko /home/orochy/Practica/day3/dev1.o /home/orochy/Practica/day3/dev1.mod.o;  true
