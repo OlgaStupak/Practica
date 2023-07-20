@@ -1,6 +1,10 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+from gtts import gTTS
+import os
+from time import sleep
+
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
@@ -8,6 +12,8 @@ cap = cv2.VideoCapture(0)  #импорт видеопотока
 
 counter = 0  #счётчик
 stage = None #состояние сгибания (нейтральное)
+bad_frames = 0
+good_frames = 0
 
 
 def calculate_angle(a, b, c):
@@ -22,10 +28,16 @@ def calculate_angle(a, b, c):
         angle = 360 - angle
 
     return angle
+def warning():
+    #audio = gTTS(text="Измените положение, вы сидите неправильно!", lang="ru")
+    #audio.save("example.mp3")
+    os.system("start example.mp3")
+    sleep(10)
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:  #объявление переменной pose как скелетной модели с точностью обнаружения 0.5
     while cap.isOpened(): #пока камера открыта
         ret, frame = cap.read() #считывание кадров с камеры
+        fps = cap.get(cv2.CAP_PROP_FPS)#частота кадров в секунду
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  #перевод изображений в RGB
         image.flags.writeable = False  #не сохраняем изображения
         results = pose.process(image)  #массив результатов
@@ -35,42 +47,79 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         try:
             landmarks = results.pose_landmarks.landmark #опорные точки (суставы)
 
-            shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]  #координаты левого плеча
-            elbow = [landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ELBOW.value].y]        #координаты левого локтя
-            wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x, landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]        #координаты левого запястья
+            # определяем координаты частей тела
+            shoulderL = [landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].y]
+            shoulderR = [landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y]
 
-            angle = calculate_angle(shoulder, elbow, wrist)            #вычисление угла сгиба локтя
-            #вывод строки с значением угла, рядом с локтем (умножаем расширение окна на координаты локтя), шрифт, размер, цвет
-            cv2.putText(image, str(angle), tuple(np.multiply(elbow, [640, 480]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+            earL = [landmarks[mp_pose.PoseLandmark.LEFT_EAR.value].x, landmarks[mp_pose.PoseLandmark.LEFT_EAR.value].y]
+            earR = [landmarks[mp_pose.PoseLandmark.RIGHT_EAR.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_EAR.value].y]
 
-            if angle > 160:
-                stage = "down"
-            if angle < 30 and stage == 'down':
-                stage = "up"
-                counter += 1
+            hipL = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x, landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+            hipR = [landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y]
 
+            kneeL = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+            kneeR = [landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y]
+
+            ankleL = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
+            ankleR = [landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y]
+
+           # угол наклона ног
+            angleLL = calculate_angle(ankleL, kneeL, hipL)
+            cv2.putText(image, str(angleLL), tuple(np.multiply(kneeL, [640, 480]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+            # угол наклона торса
+            angleHL = calculate_angle(kneeL, hipL, shoulderL)
+            cv2.putText(image, str(angleHL), tuple(np.multiply(hipL, [640, 480]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+            # отрисовка средней точки плечевого пояса
+            avg_point_shoulder = ((shoulderL[0] + shoulderR[0]) / 2, (shoulderL[1] + shoulderR[1]) / 2)
+            cv2.circle(image, (int(avg_point_shoulder[0] * frame.shape[1]), int(avg_point_shoulder[1] * frame.shape[0])), 5, (0, 0, 255), -1)
+            # отрисовка средней точки тазового пояса
+            avg_point_hip = ((hipL[0] + hipR[0]) / 2, (hipL[1] + hipR[1]) / 2)
+            cv2.circle(image,(int(avg_point_hip[0] * frame.shape[1]), int(avg_point_hip[1] * frame.shape[0])), 5, (0, 0, 255), -1)
+
+            cv2.line(image, (int(avg_point_shoulder[0] * frame.shape[1]), int(avg_point_shoulder[1] * frame.shape[0])),
+                     (int(avg_point_hip[0] * frame.shape[1]), int(avg_point_hip[1] * frame.shape[0])), (255, 0, 0), 2)
+
+            avg_point_ear = ((earL[0] + earR[0]) / 2, (earL[1] + earR[1]) / 2)
+            cv2.circle(image, (int(avg_point_ear[0] * frame.shape[1]), int(avg_point_ear[1] * frame.shape[0])), 5, (0, 0, 255), -1)
+
+            angleL = calculate_angle(avg_point_ear, avg_point_shoulder, avg_point_hip)
+            cv2.putText(image, str(angleL), tuple(np.multiply(avg_point_shoulder, [640, 480]).astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+            if angleL > 150 and (angleHL > 85 and angleHL < 115) and (angleLL > 80 and angleLL < 105):
+                stage = "good"
+                bad_frames = 0
+                good_frames += 1
+            if angleL < 150 or (angleHL < 85 or angleHL > 115) or (angleLL < 80 or angleLL > 105) and stage == 'good':
+                stage = "bad"
+                bad_frames += 1
+                good_frames = 0
+
+            #good_time = (1 / fps) * good_frames
+            bad_time = (1 / fps) * bad_frames
+
+            #if bad_time > 15:
+                #warning()
+                #os.system("start example.mp3")
+                #sleep(10)
         except:
             pass
         #прямоугольник состояния: начальные координаты, размер, цвет, заполнение цветом (-1))
-        cv2.rectangle(image, (0, 0), (225, 73), (245, 117, 16), -1)
+        cv2.rectangle(image, (0, 0), (225, 73), (200, 100, 10), -1)
 
-        # вывод количества повторений (начальные координаты, шрифт, размер шрифта, цвет, толщина линий, тип линии)
-        cv2.putText(image, 'REPS', (15, 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, str(counter), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1, cv2.LINE_AA)
-
-        # вывод состояния сгибания (вверх, вниз)
-        cv2.putText(image, 'STAGE', (100, 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, stage, (80, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 1, cv2.LINE_AA)
-
+        #вывод состояния сгибания (вверх, вниз)
+        cv2.putText(image, 'POSE', (80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, stage, (70, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 1, cv2.LINE_AA)
         mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS,
                                   mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
                                   mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
-                                  )  #отрисовка линий, соединяющих опорные точки позы человека
+                                  )  # отрисовка линий, соединяющих опорные точки позы человека
 
-        cv2.imshow('Mediapipe Feed', image)  #всплывающее окно с кадром
+        cv2.imshow('Mediapipe Feed', image)  # всплывающее окно с кадром
 
-        if cv2.waitKey(10) & 0xFF == ord('q'):  #выход из программы
-            break
+        if cv2.waitKey(10) & 0xFF == ord('q'):  # выход из программы
+             break
 
     cap.release()  #закрытие камеры
     cv2.destroyAllWindows()  #закрытие всех окон
