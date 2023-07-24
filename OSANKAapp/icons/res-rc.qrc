@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>icons/body.png</file>
+    <file>icons/arrow_back_FILL0_wght400_GRAD0_opsz48.svg</file>
+    <file>icons/conditions_FILL0_wght400_GRAD0_opsz48.svg</file>
+    <file>icons/home_FILL0_wght400_GRAD0_opsz48.svg</file>
+    <file>icons/online-training.png</file>
+    <file>icons/sports_gymnastics_FILL0_wght400_GRAD0_opsz48.svg</file>
+  </qresource>
+</RCC>
